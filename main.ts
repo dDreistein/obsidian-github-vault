@@ -9,12 +9,18 @@ import {
 	Setting,
 } from "obsidian";
 
+import simpleGit, { SimpleGit } from "simple-git";
+
 interface GitHubVaultPluginSettings {
-	mySetting: string;
+	repoPath: string;
+	remoteName: string;
+	branchName: string;
 }
 
 const DEFAULT_SETTINGS: GitHubVaultPluginSettings = {
-	mySetting: "default",
+	repoPath: "",
+	remoteName: "origin",
+	branchName: "main",
 };
 
 export default class GitHubVaultPlugin extends Plugin {
