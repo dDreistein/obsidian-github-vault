@@ -9,8 +9,6 @@ import {
 	Setting,
 } from "obsidian";
 
-import simpleGit, { SimpleGit } from "simple-git";
-
 interface GitHubVaultPluginSettings {
 	repoPath: string;
 	remoteName: string;
@@ -27,9 +25,11 @@ export default class GitHubVaultPlugin extends Plugin {
 	settings: GitHubVaultPluginSettings;
 
 	async onload() {
-		this.addRibbonIcon("dice", "Greet", () => {
-			new Notice("Hello, world!");
-		});
+		await this.loadSettings();
+
+		const basePath = (this.app.vault.adapter as any).getBasePath();
+
+		this.addSettingTab(new GitHubVaultSettingTab(this.app, this));
 	}
 
 	onunload() {}
@@ -44,5 +44,45 @@ export default class GitHubVaultPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+}
+
+class GitHubVaultSettingTab extends PluginSettingTab {
+	plugin: GitHubVaultPlugin;
+
+	constructor(app: App, plugin: GitHubVaultPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+
+		new Setting(containerEl)
+			.setName("Remote Name")
+			.setDesc("The name of your remote repository.")
+			.addText((text) =>
+				text
+					.setPlaceholder("origin")
+					.setValue(this.plugin.settings.remoteName)
+					.onChange(async (value) => {
+						this.plugin.settings.remoteName = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Branch Name")
+			.setDesc("The name of the branch to sync with.")
+			.addText((text) =>
+				text
+					.setPlaceholder("main")
+					.setValue(this.plugin.settings.branchName)
+					.onChange(async (value) => {
+						this.plugin.settings.branchName = value;
+						await this.plugin.saveSettings();
+					})
+			);
 	}
 }
