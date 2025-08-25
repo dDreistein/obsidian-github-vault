@@ -1,2 +1,4 @@
 # Obsidian GitHub Vault 🪨🟪
-Obsidian Plugin to Sync your Vault with a GitHub repository.
+Obsidian plugin to sync your vault with a GitHub repository.
+# 🚧 Disclaimer
+This plugin is currently in development and doesent work yet.
