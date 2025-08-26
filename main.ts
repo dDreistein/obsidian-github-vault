@@ -36,33 +36,32 @@ export default class GitHubVaultPlugin extends Plugin {
 		this.addSettingTab(new GitHubVaultSettingTab(this.app, this));
 
 		if (this.settings.remoteUrl && this.settings.branchName) {
-			await this.checkGitAvailable();
+			if (await this.checkGitAvailable()) {
+				simpleGitOptions.baseDir = (
+					this.app.vault.adapter as any
+				).getBasePath();
+				this.git = simpleGit(simpleGitOptions);
 
-			simpleGitOptions.baseDir = (
-				this.app.vault.adapter as any
-			).getBasePath();
-			console.log("Git Options:", simpleGitOptions);
-			this.git = simpleGit(simpleGitOptions);
+				if (!(await this.isGitInit())) {
+					this.initGit();
+				}
 
-			if (!(await this.isGitInit())) {
-				this.initGit();
+				this.addCommand({
+					id: "github-vault-push",
+					name: "GitHub Vault Push",
+					callback: async () => {
+						await this.githubVaultPush();
+					},
+				});
+
+				this.addCommand({
+					id: "github-vault-pull",
+					name: "GitHub Vault Pull",
+					callback: async () => {
+						await this.githubVaultPull();
+					},
+				});
 			}
-
-			this.addCommand({
-				id: "github-vault-push",
-				name: "GitHub Vault Push",
-				callback: async () => {
-					await this.githubVaultPush();
-				},
-			});
-
-			this.addCommand({
-				id: "github-vault-pull",
-				name: "GitHub Vault Pull",
-				callback: async () => {
-					await this.githubVaultPull();
-				},
-			});
 		} else {
 			new Notice("Please configure the GitHub Vault plugin settings.");
 		}
@@ -82,41 +81,39 @@ export default class GitHubVaultPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async checkGitAvailable(): Promise<void> {
+	async checkGitAvailable(): Promise<boolean> {
 		return new Promise((resolve) => {
 			exec("git --version", (error) => {
 				if (error) {
 					new Notice(
 						"Git is not installed or not available in PATH. GitHub Vault plugin will not work."
 					);
+					resolve(false);
+				} else {
+					resolve(true);
 				}
-				resolve();
 			});
 		});
 	}
 
 	async isGitInit(): Promise<boolean> {
 		const isRepo = await this.git.checkIsRepo();
-		console.log("isGitInit", isRepo);
 		return isRepo;
 	}
 
 	async initGit() {
-		console.log("Initializing git repository");
 		await this.git.init();
 		await this.git.remote(["add", "origin", this.settings.remoteUrl]);
 	}
 
 	async githubVaultPush() {
-		console.log("Pushing changes to GitHub");
 		await this.git.add("./*");
-    const now = new Date().toLocaleString();
-    await this.git.commit(`GitHub Vault - ${now}`);
+		const now = new Date().toLocaleString();
+		await this.git.commit(`GitHub Vault - ${now}`);
 		await this.git.push("origin", this.settings.branchName);
 	}
 
 	async githubVaultPull() {
-		console.log("Pulling changes from GitHub");
 		await this.git.pull("origin", this.settings.branchName);
 	}
 }
