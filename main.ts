@@ -7,30 +7,68 @@ import {
 	Vault,
 } from "obsidian";
 
-import simpleGit, { SimpleGit } from "simple-git";
+import simpleGit, { SimpleGit, SimpleGitOptions } from "simple-git";
+import { exec } from "child_process";
 
 interface GitHubVaultSettings {
 	remoteUrl: string;
 	branchName: string;
-	personalAccessToken: string;
 }
 
 const DEFAULT_SETTINGS: GitHubVaultSettings = {
 	remoteUrl: "",
 	branchName: "main",
-	personalAccessToken: "",
+};
+
+const simpleGitOptions: Partial<SimpleGitOptions> = {
+	baseDir: "",
+	binary: "git",
+	maxConcurrentProcesses: 6,
+	trimmed: false,
 };
 
 export default class GitHubVaultPlugin extends Plugin {
 	settings: GitHubVaultSettings;
+	git: SimpleGit;
 
 	async onload() {
-    
-  }
+		await this.loadSettings();
+		this.addSettingTab(new GitHubVaultSettingTab(this.app, this));
 
-	onunload() {
+		if (this.settings.remoteUrl && this.settings.branchName) {
+			await this.checkGitAvailable();
 
+			simpleGitOptions.baseDir = (
+				this.app.vault.adapter as any
+			).getBasePath();
+			console.log("Git Options:", simpleGitOptions);
+			this.git = simpleGit(simpleGitOptions);
+
+			if (!(await this.isGitInit())) {
+				this.initGit();
+			}
+
+			this.addCommand({
+				id: "github-vault-push",
+				name: "GitHub Vault Push",
+				callback: async () => {
+					await this.githubVaultPush();
+				},
+			});
+
+			this.addCommand({
+				id: "github-vault-pull",
+				name: "GitHub Vault Pull",
+				callback: async () => {
+					await this.githubVaultPull();
+				},
+			});
+		} else {
+			new Notice("Please configure the GitHub Vault plugin settings.");
+		}
 	}
+
+	onunload() {}
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -43,6 +81,45 @@ export default class GitHubVaultPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+
+	async checkGitAvailable(): Promise<void> {
+		return new Promise((resolve) => {
+			exec("git --version", (error) => {
+				if (error) {
+					new Notice(
+						"Git is not installed or not available in PATH. GitHub Vault plugin will not work."
+					);
+				} else {
+					console.log("Git is available");
+				}
+				resolve();
+			});
+		});
+	}
+
+	async isGitInit(): Promise<boolean> {
+		const isRepo = await this.git.checkIsRepo();
+		console.log("isGitInit", isRepo);
+		return isRepo;
+	}
+
+	async initGit() {
+		console.log("Initializing git repository");
+		await this.git.init();
+		await this.git.remote(["add", "origin", this.settings.remoteUrl]);
+	}
+
+	async githubVaultPush() {
+		console.log("Pushing changes to GitHub");
+		await this.git.add("./*");
+		await this.git.commit("Sync with GitHub");
+		await this.git.push("origin", this.settings.branchName);
+	}
+
+	async githubVaultPull() {
+		console.log("Pulling changes from GitHub");
+		await this.git.pull("origin", this.settings.branchName);
+	}
 }
 
 class GitHubVaultSettingTab extends PluginSettingTab {
@@ -51,6 +128,12 @@ class GitHubVaultSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: GitHubVaultPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	async reloadPlugin() {
+		const pluginId = this.plugin.manifest.id;
+		await this.app.plugins.disablePlugin(pluginId);
+		await this.app.plugins.enablePlugin(pluginId);
 	}
 
 	display(): void {
@@ -84,15 +167,16 @@ class GitHubVaultSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Personal Access Token")
-			.setDesc("A GitHub PAT with repo access. This is stored locally.")
-			.addText((text) =>
-				text
-					.setPlaceholder("Enter your token")
-					.setValue(this.plugin.settings.personalAccessToken)
-					.onChange(async (value) => {
-						this.plugin.settings.personalAccessToken = value;
-						await this.plugin.saveSettings();
+			.setName("Reload")
+			.setDesc(
+				"Reload the plugin to apply changes to the repository URL or branch."
+			)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Reload Plugin")
+					.setCta()
+					.onClick(async () => {
+						await this.reloadPlugin();
 					})
 			);
 	}
