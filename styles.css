@@ -1,8 +1,11 @@
-/*
+.github-vault-status-red {
+	color: var(--color-red);
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.github-vault-status-green {
+	color: var(--color-green);
+}
 
-If your plugin does not need CSS, delete this file.
-
-*/
+.github-vault-status-yellow {
+	color: var(--color-yellow);
+}

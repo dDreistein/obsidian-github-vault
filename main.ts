@@ -30,13 +30,20 @@ const simpleGitOptions: Partial<SimpleGitOptions> = {
 export default class GitHubVaultPlugin extends Plugin {
 	settings: GitHubVaultSettings;
 	git: SimpleGit;
+  gitHubVaultStatus: HTMLElement;
 
 	async onload() {
 		await this.loadSettings();
 		this.addSettingTab(new GitHubVaultSettingTab(this.app, this));
+    this.gitHubVaultStatus = this.addStatusBarItem();
 
 		if (this.settings.remoteUrl && this.settings.branchName) {
 			if (await this.checkGitAvailable()) {
+				this.gitHubVaultStatus.createEl("span", {
+					text: "Loading GitHub Vault...",
+					cls: "github-vault-status-red",
+				});
+
 				simpleGitOptions.baseDir = (
 					this.app.vault.adapter as any
 				).getBasePath();
@@ -61,6 +68,29 @@ export default class GitHubVaultPlugin extends Plugin {
 						await this.githubVaultPull();
 					},
 				});
+
+				this.registerEvent(
+					this.app.vault.on(
+						"modify",
+						this.gitStatus()
+					)
+				);
+
+				this.registerEvent(
+					this.app.vault.on(
+						"delete",
+						this.gitStatus()
+					)
+				);
+        
+				this.registerEvent(
+					this.app.vault.on(
+						"create",
+						this.gitStatus()
+					)
+				);
+
+        this.gitStatus();
 			}
 		} else {
 			new Notice("Please configure the GitHub Vault plugin settings.");
@@ -116,6 +146,28 @@ export default class GitHubVaultPlugin extends Plugin {
 	async githubVaultPull() {
 		await this.git.pull("origin", this.settings.branchName);
 	}
+
+	async gitStatus() {
+		const status = await this.git.status();
+		if (status.files.length > 0) {
+			this.setStatus(
+				`${status.files.length} Uncommitted Change${
+					status.files.length === 1 ? "" : "s"
+				}`,
+				"red"
+			);
+		} else {
+			this.setStatus("All Changes Committed", "green");
+		}
+	}
+
+  async setStatus(status: string, color: "green" | "yellow" | "red") {
+    this.gitHubVaultStatus.setText(status);
+    this.gitHubVaultStatus.removeClass("github-vault-status-green");
+    this.gitHubVaultStatus.removeClass("github-vault-status-yellow");
+    this.gitHubVaultStatus.removeClass("github-vault-status-red");
+    this.gitHubVaultStatus.addClass(`github-vault-status-${color}`);
+  }
 }
 
 class GitHubVaultSettingTab extends PluginSettingTab {
