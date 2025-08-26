@@ -89,8 +89,6 @@ export default class GitHubVaultPlugin extends Plugin {
 					new Notice(
 						"Git is not installed or not available in PATH. GitHub Vault plugin will not work."
 					);
-				} else {
-					console.log("Git is available");
 				}
 				resolve();
 			});
@@ -112,7 +110,8 @@ export default class GitHubVaultPlugin extends Plugin {
 	async githubVaultPush() {
 		console.log("Pushing changes to GitHub");
 		await this.git.add("./*");
-		await this.git.commit("Sync with GitHub");
+    const now = new Date().toLocaleString();
+    await this.git.commit(`GitHub Vault - ${now}`);
 		await this.git.push("origin", this.settings.branchName);
 	}
 
