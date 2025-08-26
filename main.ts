@@ -185,7 +185,6 @@ export default class GitHubVaultPlugin extends Plugin {
 	}
 
 	async ensureGitignore() {
-    console.log("Ensuring .gitignore exists and is configured");
 		const vaultPath = (this.app.vault.adapter as any).getBasePath();
 		const gitignorePath = path.join(vaultPath, ".gitignore");
 		let content = "";
