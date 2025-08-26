@@ -7,6 +7,8 @@ import {
 	Vault,
 } from "obsidian";
 
+import simpleGit, { SimpleGit } from "simple-git";
+
 interface GitHubVaultSettings {
 	remoteUrl: string;
 	branchName: string;
