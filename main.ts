@@ -52,14 +52,14 @@ export default class GitHubVaultPlugin extends Plugin {
 				
         this.addCommand({
 					id: "github-vault-push",
-					name: "GitHub Vault Push",
+					name: "Push",
 					callback: async () => {
 						await this.gitManager.githubVaultPush();
 					},
 				});
 				this.addCommand({
 					id: "github-vault-pull",
-					name: "GitHub Vault Pull",
+					name: "Pull",
 					callback: async () => {
 						await this.gitManager.githubVaultPull();
 					},
