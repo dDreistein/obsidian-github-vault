@@ -29,7 +29,7 @@ const simpleGitOptions: Partial<SimpleGitOptions> = {
 export default class GitHubVaultPlugin extends Plugin {
 	settings: GitHubVaultSettings;
 	gitHubVaultStatus: HTMLElement;
-  gitManager: gitManager;
+	gitManager: gitManager;
 
 	async onload() {
 		await this.loadSettings();
@@ -40,17 +40,21 @@ export default class GitHubVaultPlugin extends Plugin {
 			cls: "github-vault-status-red",
 		});
 
-    this.gitManager = new gitManager();
-    this.gitManager.setStatusCallback(this.setStatus.bind(this));
+		this.gitManager = new gitManager();
+		this.gitManager.setStatusCallback(this.setStatus.bind(this));
 
 		if (this.settings.remoteUrl && this.settings.branchName) {
 			if (await this.gitManager.checkGitAvailable()) {
 				simpleGitOptions.baseDir = (
 					this.app.vault.adapter as any
 				).getBasePath();
-				await this.gitManager.initGitManager(simpleGitOptions, this.settings, this.app);
-				
-        this.addCommand({
+				await this.gitManager.initGitManager(
+					simpleGitOptions,
+					this.settings,
+					this.app
+				);
+
+				this.addCommand({
 					id: "github-vault-push",
 					name: "Push",
 					callback: async () => {
@@ -66,29 +70,34 @@ export default class GitHubVaultPlugin extends Plugin {
 				});
 
 				this.registerEvent(
-					this.app.vault.on("modify", () => this.gitManager.gitStatus())
+					this.app.vault.on("modify", () =>
+						this.gitManager.gitStatus()
+					)
 				);
 				this.registerEvent(
-					this.app.vault.on("delete", () => this.gitManager.gitStatus())
+					this.app.vault.on("delete", () =>
+						this.gitManager.gitStatus()
+					)
 				);
 				this.registerEvent(
-					this.app.vault.on("create", () => this.gitManager.gitStatus())
+					this.app.vault.on("create", () =>
+						this.gitManager.gitStatus()
+					)
 				);
-
 			} else {
-        new Notice(
-          "Git is not installed or not available in PATH. GitHub Vault plugin will not work."
-        );
-      }
+				new Notice(
+					"Git is not installed or not available in PATH. GitHub Vault plugin will not work."
+				);
+			}
 		} else {
-      this.setStatus("Configure Plugin Settings", "red");
+			this.setStatus("Configure Plugin Settings", "red");
 			new Notice("Please configure the GitHub Vault plugin settings.");
 		}
 	}
 
 	onunload() {
-    this.gitHubVaultStatus.remove();
-  }
+		this.gitHubVaultStatus.remove();
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(

@@ -36,10 +36,8 @@ export default class gitManager {
 		settings: GitHubVaultSettings,
 		app: App
 	) {
-		console.log("Initializing SimpleGit with options:", simpleGitOptions);
-
-    this.settings = settings;
-    this.app = app;
+		this.settings = settings;
+		this.app = app;
 		this.git = await simpleGit(simpleGitOptions);
 
 		if (!(await this.isGitInit())) {
@@ -49,7 +47,7 @@ export default class gitManager {
 		await this.ensureGitignore();
 		await this.updateRemote();
 
-    await this.gitStatus();
+		await this.gitStatus();
 	}
 
 	public async checkGitAvailable(): Promise<boolean> {
