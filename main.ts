@@ -7,11 +7,7 @@ import {
 	Vault,
 } from "obsidian";
 
-import { promises as fs } from "fs";
-import * as path from "path";
-
-import simpleGit, { SimpleGit, SimpleGitOptions } from "simple-git";
-import { exec } from "child_process";
+import gitManager, { SimpleGitOptions } from "./src/gitManager";
 
 interface GitHubVaultSettings {
 	remoteUrl: string;
@@ -32,8 +28,8 @@ const simpleGitOptions: Partial<SimpleGitOptions> = {
 
 export default class GitHubVaultPlugin extends Plugin {
 	settings: GitHubVaultSettings;
-	git: SimpleGit;
 	gitHubVaultStatus: HTMLElement;
+  gitManager: gitManager;
 
 	async onload() {
 		await this.loadSettings();
@@ -44,50 +40,46 @@ export default class GitHubVaultPlugin extends Plugin {
 			cls: "github-vault-status-red",
 		});
 
+    this.gitManager = new gitManager();
+    this.gitManager.setStatusCallback(this.setStatus.bind(this));
+
 		if (this.settings.remoteUrl && this.settings.branchName) {
-			if (await this.checkGitAvailable()) {
+			if (await this.gitManager.checkGitAvailable()) {
 				simpleGitOptions.baseDir = (
 					this.app.vault.adapter as any
 				).getBasePath();
-				this.git = simpleGit(simpleGitOptions);
-
-				if (!(await this.isGitInit())) {
-					await this.initGit();
-				}
-
-				await this.ensureGitignore();
-        await this.updateRemote();
-
-				this.addCommand({
+				await this.gitManager.initGitManager(simpleGitOptions, this.settings, this.app);
+				
+        this.addCommand({
 					id: "github-vault-push",
 					name: "GitHub Vault Push",
 					callback: async () => {
-						await this.githubVaultPush();
+						await this.gitManager.githubVaultPush();
 					},
 				});
-
 				this.addCommand({
 					id: "github-vault-pull",
 					name: "GitHub Vault Pull",
 					callback: async () => {
-						await this.githubVaultPull();
+						await this.gitManager.githubVaultPull();
 					},
 				});
 
 				this.registerEvent(
-					this.app.vault.on("modify", () => this.gitStatus())
+					this.app.vault.on("modify", () => this.gitManager.gitStatus())
 				);
-
 				this.registerEvent(
-					this.app.vault.on("delete", () => this.gitStatus())
+					this.app.vault.on("delete", () => this.gitManager.gitStatus())
 				);
-
 				this.registerEvent(
-					this.app.vault.on("create", () => this.gitStatus())
+					this.app.vault.on("create", () => this.gitManager.gitStatus())
 				);
 
-				await this.gitStatus();
-			}
+			} else {
+        new Notice(
+          "Git is not installed or not available in PATH. GitHub Vault plugin will not work."
+        );
+      }
 		} else {
       this.setStatus("Configure Plugin Settings", "red");
 			new Notice("Please configure the GitHub Vault plugin settings.");
@@ -110,99 +102,12 @@ export default class GitHubVaultPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async checkGitAvailable(): Promise<boolean> {
-		return new Promise((resolve) => {
-			exec("git --version", (error) => {
-				if (error) {
-					new Notice(
-						"Git is not installed or not available in PATH. GitHub Vault plugin will not work."
-					);
-					resolve(false);
-				} else {
-					resolve(true);
-				}
-			});
-		});
-	}
-
-	async isGitInit(): Promise<boolean> {
-		const isRepo = await this.git.checkIsRepo();
-		return isRepo;
-	}
-
-	async initGit() {
-		await this.git.init();
-		await this.git.remote(["add", "origin", this.settings.remoteUrl]);
-	}
-
-  async updateRemote() {
-    await this.git.remote(["set-url", "origin", this.settings.remoteUrl]);
-  }
-
-	async githubVaultPush() {
-    await this.setStatus("Pushing changes...", "yellow");
-		await this.git.add("./*");
-		const now = new Date().toLocaleString();
-		await this.git.commit(`GitHub Vault - ${now}`);
-    try {
-      await this.git.push("origin", this.settings.branchName);
-    } catch (error) {
-      new Notice(`GitHub Vault Push Error: ${(error as Error).message}`, 5000);
-    }
-    await this.gitStatus();
-	}
-
-	async githubVaultPull() {
-    await this.setStatus("Pulling changes...", "yellow");
-    try {
-      await this.git.pull("origin", this.settings.branchName);
-    } catch (error) {
-      new Notice(`GitHub Vault Pull Error: ${(error as Error).message}`, 5000);
-    }
-    await this.gitStatus();
-	}
-
-	async gitStatus() {
-		const status = await this.git.status();
-		if (status.files.length > 0) {
-			this.setStatus(
-				`${status.files.length} Uncommitted Change${
-					status.files.length === 1 ? "" : "s"
-				}`,
-				"red"
-			);
-		} else {
-			this.setStatus("No Uncommitted Changes", "green");
-		}
-	}
-
 	async setStatus(status: string, color: "green" | "yellow" | "red") {
 		this.gitHubVaultStatus.setText(status);
 		this.gitHubVaultStatus.removeClass("github-vault-status-green");
 		this.gitHubVaultStatus.removeClass("github-vault-status-yellow");
 		this.gitHubVaultStatus.removeClass("github-vault-status-red");
 		this.gitHubVaultStatus.addClass(`github-vault-status-${color}`);
-	}
-
-	async ensureGitignore() {
-		const vaultPath = (this.app.vault.adapter as any).getBasePath();
-		const gitignorePath = path.join(vaultPath, ".gitignore");
-		let content = "";
-
-		try {
-			content = await fs.readFile(gitignorePath, "utf8");
-			if (!content.includes(".obsidian/")) {
-				content +=
-					(content.endsWith("\n") ? "" : "\n") + ".obsidian/\n";
-				await fs.writeFile(gitignorePath, content, "utf8");
-			}
-		} catch (err) {
-			if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-				await fs.writeFile(gitignorePath, ".obsidian/\n", "utf8");
-			} else {
-				throw err;
-			}
-		}
 	}
 }
 
@@ -236,7 +141,6 @@ class GitHubVaultSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-
 		new Setting(containerEl)
 			.setName("Branch Name")
 			.setDesc("The name of the branch to sync with.")
@@ -249,7 +153,6 @@ class GitHubVaultSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-
 		new Setting(containerEl)
 			.setName("Reload")
 			.setDesc(
