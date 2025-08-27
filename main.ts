@@ -7,12 +7,7 @@ import {
 	Vault,
 } from "obsidian";
 
-import gitManager, { SimpleGitOptions } from "./src/gitManager";
-
-interface GitHubVaultSettings {
-	remoteUrl: string;
-	branchName: string;
-}
+import gitManager, { SimpleGitOptions, GitHubVaultSettings } from "./src/gitManager";
 
 const DEFAULT_SETTINGS: GitHubVaultSettings = {
 	remoteUrl: "",

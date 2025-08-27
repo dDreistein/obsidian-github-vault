@@ -10,7 +10,7 @@ export type { SimpleGitOptions };
 type StatusColor = "green" | "yellow" | "red";
 type StatusCallback = (status: string, color: StatusColor) => void;
 
-interface GitHubVaultSettings {
+export interface GitHubVaultSettings {
 	remoteUrl: string;
 	branchName: string;
 }
