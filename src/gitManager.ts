@@ -30,8 +30,7 @@ export default class gitManager {
 			this.statusCallback(status, color);
 		}
 	}
-
-	public async initGitManager(
+	async initGitManager(
 		simpleGitOptions: Partial<SimpleGitOptions>,
 		settings: GitHubVaultSettings,
 		app: App
@@ -44,13 +43,13 @@ export default class gitManager {
 			await this.initGit();
 		}
 
+    await this.setBranch();
 		await this.ensureGitignore();
 		await this.updateRemote();
 
 		await this.gitStatus();
 	}
-
-	public async checkGitAvailable(): Promise<boolean> {
+	async checkGitAvailable(): Promise<boolean> {
 		return new Promise((resolve) => {
 			exec("git --version", (error) => {
 				if (error) {
@@ -61,21 +60,17 @@ export default class gitManager {
 			});
 		});
 	}
-
-	public async isGitInit(): Promise<boolean> {
+	private async isGitInit(): Promise<boolean> {
 		const isRepo = await this.git.checkIsRepo();
 		return isRepo;
 	}
-
-	public async initGit() {
+	private async initGit() {
 		await this.git.init();
 		await this.git.remote(["add", "origin", this.settings.remoteUrl]);
 	}
-
-	public async updateRemote() {
+	private async updateRemote() {
 		await this.git.remote(["set-url", "origin", this.settings.remoteUrl]);
 	}
-
 	async githubVaultPush() {
 		await this.setStatus("Pushing changes...", "yellow");
 		await this.git.add("./*");
@@ -91,7 +86,6 @@ export default class gitManager {
 		}
 		await this.gitStatus();
 	}
-
 	async githubVaultPull() {
 		await this.setStatus("Pulling changes...", "yellow");
 		try {
@@ -104,7 +98,6 @@ export default class gitManager {
 		}
 		await this.gitStatus();
 	}
-
 	async gitStatus() {
 		const status = await this.git.status();
 		if (status.files.length > 0) {
@@ -118,8 +111,7 @@ export default class gitManager {
 			this.setStatus("No Uncommitted Changes", "green");
 		}
 	}
-
-	async ensureGitignore() {
+	private async ensureGitignore() {
 		const vaultPath = (this.app.vault.adapter as any).getBasePath();
 		const gitignorePath = path.join(vaultPath, ".gitignore");
 		let content = "";
@@ -139,4 +131,12 @@ export default class gitManager {
 			}
 		}
 	}
+	private async setBranch() {
+    const branches = await this.git.branchLocal();
+    if (!branches.all.includes(this.settings.branchName)) {
+        await this.git.checkoutLocalBranch(this.settings.branchName);
+    } else {
+        await this.git.checkout(this.settings.branchName);
+    }
+}
 }
