@@ -32,8 +32,7 @@ Keep your notes versioned, backed up, and accessible from anywhere.
 ## Troubleshooting
 
 - If you see a message that Git is not installed, ensure Git is available in your system's PATH.
-- Check the status bar for sync status and error messages.
-- For more help, visit the [GitHub repository](https://github.com/dDreistein/obsidian-github-vault).
+- Check the status bar for sync status.
 
 ## License
 
